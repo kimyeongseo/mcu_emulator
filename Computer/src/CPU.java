@@ -277,7 +277,7 @@ public class CPU {
 		CPU cpu = new CPU();
 		Memory memory = new Memory();
 		cpu.associate(memory);
-		memory.readExe("exe2");
+		memory.readExe("exe");
 		cpu.setPowerOn();
 //		System.out.println((short)0x002F + 1); // 48
 	}
