@@ -1,210 +1,285 @@
 
-
-import java.io.IOException;
-
 public class CPU {
-    
-    // declaration
-    private enum ERegister {
-        ePC,
-		eSP,
-		eAC,
-		eIR,
-		eStatus,
-		eMAR,
-		eMBR
-    }
+	
+	// declaration
+	private enum EOpCode {
+		eHalt((short) 0x00), // 0x00 -> 00000000
+		eLDC((short) 0x01),  // 0x01 -> 00000001
+		eLDA((short) 0x02),  // 0x02 -> 00000010
+		eSTA((short) 0x03),  // 0x03 -> 00000011
+		eADDA((short) 0x04), // 0x04 -> 00000100
+		eADDC((short) 0x05), // 0x05 -> 00000101
+		eSUBA((short) 0x06), // 0x06 -> 00000110
+		eSUBC((short) 0x07), // 0x07 -> 00000111
+		eMULA((short) 0x08), // 0x08 -> 00001000
+		eDIVC((short) 0x09), // 0x09 -> 00001001
+		eANDA((short) 0x0A), // 0x0A -> 00001010
+		eNOTA((short) 0x0B), // 0x0B -> 00001011
+		eJMPZ((short) 0x0C), // 0x0C -> 00001100
+		eJMPBZEQ((short) 0x0D),// 0x0D -> 00001101
+		eJMP((short) 0x0E);  // 0x0E -> 00001110
 
-    private enum EOpCode {
-		eHalt,
-		eLDACC, // AC <- constant
-		eLDACA,
-		eLDIRA,
-		eSTA,
-		eADD,
-		eSub,
-		eEQ,
-		eGT,
-		eBEQ,
-		eBGT,
-		eBranch
+		short opcode;
+		private EOpCode(short opcode) {
+			this.opcode = opcode;
+		}
+		
+		public short getValue() {
+			return opcode;
+		}
 	}
-
-    private class ALU {
-		public void add() {
-			// TODO Auto-generated method stub	
+	
+	private enum ERegister {
+        ePC((short) 0x0000),
+		eSP((short) 0x002F), // codesegment
+		eAC((short) 0x0000),
+		eIR((short) 0x0000),
+		eSR((short) 0x0000),
+		eStatus((short) 0x0000),
+		eMAR((short) 0x0000),
+		eMBR((short) 0x0000);
+		
+		short value;
+		private ERegister(short value) {
+			this.value = value;
 		}
-		public void subtract() {
-			// TODO Auto-generated method stub	
+		
+		public short getValue() {
+			return value;
 		}
-		public void equal() {
-			// TODO Auto-generated method stub	
-		}
-		public void graterThan() {
-			// TODO Auto-generated method stub
+		
+		public void setValue(short value) {
+			this.value = value;
 		}
     }
-
-    private class CU {
-    }
-
-    private class Register {
-        protected short value;
-        public short getValue() { return this.value;}
-        public void setValue(short value){ this.value = value; }
-    }
-
-    class IR extends Register{
-        public short getOpCode() { return (short) (this.value >> 8);}      // 8비트 밀어서 IR의 Opcode를 가져온다
-        public short getOperand() { return (short) (this.value & 0x00FF);} // &연신자를 이용해 IR의 Operand 값을 가져온다
-    }
-
-
+	
+    
     //component
-    private CU cu;
     private ALU alu;
-    private Register registers[];
+    private CU cu;
 
+    
     // association
     private Memory memory;
+    
+    public void associate(Memory memory) {
+        this.memory = memory;		
+    }
+    
+    
+	public class ALU  {
+		
+		private enum EALU {
+			eStore((short) 0x0000),
+			eAdd((short) 0x0000),
+			eDivision((short) 0x0000),
+			eSubtract((short) 0x0000);
+			
+			short value;
+			private EALU(short value) {
+				this.value = value;
+			}
+			
+			public short getValue() {
+				return value;
+			}
+			
+			public void setValue(short value) {
+				this.value = value;
+			}
+		}
+		
+	
 
+		public void multiply(short value) {
+			// TODO Auto-generated method stub
+			
+		}
+
+		public void and(short value) {
+			// TODO Auto-generated method stub
+			
+		}
+
+		public void not(short value) {
+			// TODO Auto-generated method stub
+			
+		}
+	}
+	
+	private class CU {
+		public boolean isZero(short value) {
+			if((short) (value & 0x8000) == 0) {
+				return false;
+			} else {
+				return true;
+			}
+		}
+		
+		public boolean isBZEQ(short value) {
+			if((short) (value & 0x6000) == 0) {
+				return false;
+			} else {
+				return true;
+			}
+		}
+	}
+	
+    // Instructions
+    private void Halt() {
+    	System.out.println("halt");
+    	shutDown();
+    }
+    private void LDC(short ir_operand) {
+    	System.out.println("load c");
+    	ERegister.eMBR.setValue(ir_operand);
+    	ERegister.eAC.setValue(ERegister.eMBR.getValue());
+    	ERegister.ePC.value++;
+    }
+    private void LDA(short ir_operand) {
+    	System.out.println("load a");
+    	ERegister.eMAR.setValue((short)(ir_operand + ERegister.eSP.getValue()));
+    	ERegister.eMBR.setValue(this.memory.load(ERegister.eMAR.getValue()));
+    	ERegister.eAC.setValue(ERegister.eMBR.getValue());
+    	ERegister.ePC.value++;
+    }
+    private void STA(short ir_operand) {
+    	System.out.println("store");
+    	ERegister.eMAR.setValue((short)(ir_operand + ERegister.eSP.getValue()));
+    	ERegister.eMBR.setValue(ERegister.eAC.getValue());
+    	this.memory.store(ERegister.eMAR.getValue(), ERegister.eMBR.getValue());
+    	ERegister.ePC.value++;
+    }
+    private void ADDA(short ir_operand) {
+    	System.out.println("add a");
+    	ALU.EALU.eStore.setValue(ERegister.eAC.getValue());
+    	this.LDA(ir_operand);
+    	ALU.EALU.eAdd.setValue((short)(ALU.EALU.eStore.getValue() + ERegister.eAC.getValue()));
+    	ERegister.eAC.setValue(ALU.EALU.eAdd.getValue());
+    }
+    
+    private void ADDC(short ir_operand) {
+    }
+    private void SUBA(short ir_operand) {
+    }
+    
+    private void SUBC(short ir_operand) {
+    	System.out.println("sub c");
+    	ALU.EALU.eStore.setValue(ERegister.eAC.getValue());
+    	this.LDC(ir_operand);
+    	ALU.EALU.eSubtract.setValue((short)(ALU.EALU.eStore.getValue() - ERegister.eAC.getValue()));
+    	ERegister.eAC.setValue(ALU.EALU.eSubtract.getValue());
+    	
+    	if((short)(ERegister.eAC.getValue()) <= 0) {
+    		ERegister.eSR.setValue((short)16384);
+    	}else {
+    		ERegister.eSR.setValue((short) 0);
+    	}
+    }
+    private void MULA(short ir_operand) {
+    }
+    
+    private void DIVC(short ir_operand) {
+    	System.out.println("div c");
+    	ALU.EALU.eStore.setValue(ERegister.eAC.getValue());
+    	this.LDC(ir_operand);
+    	ERegister.eAC.setValue((short)(ALU.EALU.eStore.getValue() / ERegister.eAC.getValue()));
+    }
+    
+    private void ANDA(short ir_operand) {
+    }
+    private void NOTA(short ir_operand) {
+    }
+    private void JMPZ(short ir_operand) {
+    }
+    
+    private void JMPBZEQ(short ir_operand) {
+    	CU cu = new CU();
+    	System.out.println("JMPBZEQ");
+    	if(cu.isBZEQ(ERegister.eSR.value)) {
+    		ERegister.ePC.setValue(ir_operand);
+    	} else ERegister.ePC.value++;
+    }
+    private void JMP(short ir_operand) {
+    	ERegister.ePC.setValue(ir_operand);
+    	System.out.println("jmp");
+    }
+
+	
     // status
-    private boolean bPowerOn = true;
+    private boolean bPowerOn ;
     private boolean isPowerOn() { return this.bPowerOn; }
     public void setPowerOn(){
-        this.bPowerOn = true; // 임의로 true로 설정
-        this.run();
-    }
+        this.bPowerOn = true;
+        this.run();}
     public void shutDown() { this.bPowerOn = false; }
-
-    //constructor
-    public CPU() {
-        this.cu = new CU();
-        this.alu = new ALU();
-        this.registers = new Register[ERegister.values().length];
-        for(ERegister eRegister: ERegister.values()){
-            this.registers[eRegister.ordinal()] = new Register();
-        }
+   
+    
+    public void fetch() {
+    	System.out.println("<<<<<fetch>>>>>");
+    	System.out.println("Program Counter: "+ERegister.ePC.getValue());
+    	ERegister.eMAR.setValue(ERegister.ePC.getValue());
+    	ERegister.eMBR.setValue(this.memory.load(ERegister.eMAR.getValue()));
+    	ERegister.eIR.setValue(ERegister.eMBR.getValue());
     }
-
-    public void associate(Memory memory) throws IOException{
-        this.memory = memory;
-		memory.read();
-		System.out.println("dataSegment memory:" + memory.dataSegment[0]);
-
+    
+    public void execute() {
+    	System.out.println("-----execute-----");
+    	
+    	short ir_opcode =  (short)(ERegister.eIR.value >> 8);
+    	short ir_operand = (short)(ERegister.eIR.value & 0x00ff);
+    	System.out.println("opcode: " + ir_opcode + ", operand: " + ir_operand);
+    	
+    	if((short) ir_opcode == EOpCode.eHalt.getValue()){
+        	this.Halt();
+    	}else if((short) ir_opcode == EOpCode.eLDC.getValue()){
+    		this.LDC(ir_operand);
+    	}else if((short) ir_opcode == EOpCode.eLDA.getValue()){
+        	this.LDA(ir_operand);
+    	}else if((short) ir_opcode == EOpCode.eSTA.getValue()){
+    		this.STA(ir_operand);
+    	}else if((short) ir_opcode == EOpCode.eADDA.getValue()){
+        	this.ADDA(ir_operand);
+    	}else if((short) ir_opcode == EOpCode.eADDC.getValue()){
+    		this.ADDC(ir_operand);
+    	}else if((short) ir_opcode == EOpCode.eSUBA.getValue()){
+        	this.SUBA(ir_operand);
+    	}else if((short) ir_opcode == EOpCode.eSUBC.getValue()){
+    		this.SUBC(ir_operand);
+    	}else if((short) ir_opcode == EOpCode.eMULA.getValue()){
+        	this.MULA(ir_operand);
+    	}else if((short) ir_opcode == EOpCode.eDIVC.getValue()){
+    		this.DIVC(ir_operand);
+    	}else if((short) ir_opcode == EOpCode.eANDA.getValue()){
+    		this.ANDA(ir_operand);
+    	}else if((short) ir_opcode == EOpCode.eNOTA.getValue()){
+        	this.NOTA(ir_operand);
+    	}else if((short) ir_opcode == EOpCode.eJMPZ.getValue()){
+    		this.JMPZ(ir_operand);
+    	}else if((short) ir_opcode == EOpCode.eJMPBZEQ.getValue()){
+        	this.JMPBZEQ(ir_operand);
+    	}else if((short) ir_opcode == EOpCode.eJMP.getValue()){
+    		this.JMP(ir_operand);
+    	} else {
+    	 	shutDown();
+    	}
     }
-
-	private void fetch() {
-		// pc -> mar 
-		this.registers[ERegister.eMAR.ordinal()].setValue(this.registers[ERegister.ePC.ordinal()].getValue());
-		//memory -> mbr
-	   ////// this.memory.load();
-		// mbr -> IR
-		this.registers[ERegister.eIR.ordinal()].setValue(this.registers[ERegister.eMBR.ordinal()].getValue());
-	}
-
-	private void loadACC() {
-		short operand = (short) ((IR) this.registers[ERegister.eIR.ordinal()]).getOperand();
-		this.registers[ERegister.eAC.ordinal()].setValue(operand);
-	}
-
-	private void loadACA() {
-		short address = (short) ((IR) this.registers[ERegister.eIR.ordinal()]).getOperand();
-		this.registers[ERegister.eMAR.ordinal()].setValue(address);
-		short data = this.memory.load(this.registers[ERegister.eMAR.ordinal()].getValue());
-		this.registers[ERegister.eMBR.ordinal()].setValue(data);
-		this.registers[ERegister.eAC.ordinal()].setValue(this.registers[ERegister.eMBR.ordinal()].getValue());
-	}
 	
-	private void loadIRA() { 
-		short address = this.registers[ERegister.ePC.ordinal()].getValue();
-		this.registers[ERegister.eMAR.ordinal()].setValue(address);
-		short data = this.memory.load(this.registers[ERegister.eMAR.ordinal()].getValue());
-		this.registers[ERegister.eMBR.ordinal()].setValue(data);
-		this.registers[ERegister.eIR.ordinal()].setValue(this.registers[ERegister.eMBR.ordinal()].getValue());
-	}
-
-	private void store(){ //memory에 mar값과 mbr값을 저장한다.
- 		this.memory.store(this.registers[ERegister.eMAR.ordinal()].getValue(), this.registers[ERegister.eMBR.ordinal()].getValue());
-	}
-
-	private void add(){
-		this.registers[ERegister.eAC.ordinal()].setValue(this.registers[ERegister.eMBR.ordinal()].getValue());
-			// this.load();
-		this.alu.add();
-	}
-
-	private void subtract(){
-	}
-
-	private void equal(){
-	}
-
-	private void graterThan(){
-	}
-
-	private void halt(){ // stop the clock
-
-	}
-
-	
-	private void execute() {
-		switch(EOpCode.values()[((IR) this.registers[ERegister.eIR.ordinal()]).getOpCode()]) {
-		case eHalt:
-			this.halt();
-			break;
-        case eLDACC:
-			this.loadACC();
-			break;
-		case eLDACA:
-			this.loadACA();
-			break;
-		case eLDIRA:
-			this.loadIRA();
-			break;
-		case eSTA:
-			this.store();
-			break;
-		case eADD:
-			this.add();
-			break;
-		case eSub:
-			this.subtract();
-			break;
-		case eEQ:
-			this.equal();
-			break;
-		case eGT:
-			this.graterThan();
-			break;
-		case eBEQ:
-			break;
-		case eBGT:
-			break;
-		case eBranch:
-			break;
-		default:
-			break;
-		}
-	}
-
-	private void checkInterrupt() {
-		
-	}
-
+    
 	public void run() {
 		while (this.isPowerOn()) {
-		this.fetch();
-		this.execute();
-		this.checkInterrupt();
+			this.fetch();
+			this.execute();
 		}
 	}
 	
-	public static void main(String args[]) throws Exception{
+	public static void main(String args[]) {
 		CPU cpu = new CPU();
 		Memory memory = new Memory();
 		cpu.associate(memory);
+		memory.readExe("exe2");
 		cpu.setPowerOn();
-}
+//		System.out.println((short)0x002F + 1); // 48
+	}
 
 }
