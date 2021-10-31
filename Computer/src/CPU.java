@@ -1,4 +1,3 @@
-
 public class CPU {
 	
 	// declaration
@@ -17,7 +16,8 @@ public class CPU {
 		eNOTA((short) 0x0B), // 0x0B -> 00001011
 		eJMPZ((short) 0x0C), // 0x0C -> 00001100
 		eJMPBZEQ((short) 0x0D),// 0x0D -> 00001101
-		eJMP((short) 0x0E);  // 0x0E -> 00001110
+		eJMP((short) 0x0E),  // 0x0E -> 00001110
+		eJMPBZ((short) 0x0F); 
 
 		short opcode;
 		private EOpCode(short opcode) {
@@ -31,7 +31,7 @@ public class CPU {
 	
 	private enum ERegister {
         ePC((short) 0x0000),
-		eSP((short) 0x002F), // codesegment
+		eSP((short) 0x0000),
 		eAC((short) 0x0000),
 		eIR((short) 0x0000),
 		eSR((short) 0x0000),
@@ -53,7 +53,7 @@ public class CPU {
 		}
     }
 	
-    
+
     //component
     private ALU alu;
     private CU cu;
@@ -68,12 +68,14 @@ public class CPU {
     
     
 	public class ALU  {
-		
 		private enum EALU {
 			eStore((short) 0x0000),
 			eAdd((short) 0x0000),
 			eDivision((short) 0x0000),
-			eSubtract((short) 0x0000);
+			eSubtract((short) 0x0000),
+			eMultiply((short) 0x0000),
+			eAnd((short) 0x0000),
+			eNot((short) 0x0000);
 			
 			short value;
 			private EALU(short value) {
@@ -88,28 +90,19 @@ public class CPU {
 				this.value = value;
 			}
 		}
-		
-	
-
-		public void multiply(short value) {
-			// TODO Auto-generated method stub
-			
-		}
-
-		public void and(short value) {
-			// TODO Auto-generated method stub
-			
-		}
-
-		public void not(short value) {
-			// TODO Auto-generated method stub
-			
-		}
 	}
 	
 	private class CU {
 		public boolean isZero(short value) {
-			if((short) (value & 0x8000) == 0) {
+			if((short) (value & 0x8000) == 0) { // 1000 0000 0000 0000
+				return false;
+			} else {
+				return true;
+			}
+		}
+		
+		public boolean isBZ(short value) {
+			if((short) (value & 0x4000) == 0) { // 0100 0000 0000 0000
 				return false;
 			} else {
 				return true;
@@ -117,7 +110,7 @@ public class CPU {
 		}
 		
 		public boolean isBZEQ(short value) {
-			if((short) (value & 0x6000) == 0) {
+			if((short) (value & 0xC000) == 0) { // 1100 0000 0000 0000
 				return false;
 			} else {
 				return true;
@@ -159,8 +152,27 @@ public class CPU {
     }
     
     private void ADDC(short ir_operand) {
+    	System.out.println("add a");
+    	ALU.EALU.eStore.setValue(ERegister.eAC.getValue());
+    	this.LDC(ir_operand);
+    	ALU.EALU.eAdd.setValue((short)(ALU.EALU.eStore.getValue() + ERegister.eAC.getValue()));
+    	ERegister.eAC.setValue(ALU.EALU.eAdd.getValue());
     }
+    
     private void SUBA(short ir_operand) {
+    	System.out.println("sub a");
+    	ALU.EALU.eStore.setValue(ERegister.eAC.getValue());
+    	this.LDA(ir_operand);
+    	ALU.EALU.eSubtract.setValue((short)(ALU.EALU.eStore.getValue() - ERegister.eAC.getValue()));
+    	ERegister.eAC.setValue(ALU.EALU.eSubtract.getValue());
+    	
+    	if((short)(ERegister.eAC.getValue()) < 0) {
+    		ERegister.eSR.setValue((short)16384); // 4000
+    	}else if((short)(ERegister.eAC.getValue()) == 0) {
+    		ERegister.eSR.setValue((short) 32768); // 8000
+    	} else {
+    		ERegister.eSR.setValue((short) 0);
+    	}
     }
     
     private void SUBC(short ir_operand) {
@@ -170,13 +182,21 @@ public class CPU {
     	ALU.EALU.eSubtract.setValue((short)(ALU.EALU.eStore.getValue() - ERegister.eAC.getValue()));
     	ERegister.eAC.setValue(ALU.EALU.eSubtract.getValue());
     	
-    	if((short)(ERegister.eAC.getValue()) <= 0) {
-    		ERegister.eSR.setValue((short)16384);
-    	}else {
+    	if((short)(ERegister.eAC.getValue()) < 0) {
+    		ERegister.eSR.setValue((short)16384); // 4000
+    	}else if((short)(ERegister.eAC.getValue()) == 0) {
+    		ERegister.eSR.setValue((short) 32768); // 8000
+    	} else {
     		ERegister.eSR.setValue((short) 0);
     	}
     }
+    
     private void MULA(short ir_operand) {
+    	System.out.println("multiply a");
+    	ALU.EALU.eStore.setValue(ERegister.eAC.getValue());
+    	this.LDA(ir_operand);
+    	ALU.EALU.eMultiply.setValue((short)(ALU.EALU.eStore.getValue() * ERegister.eAC.getValue()));
+    	ERegister.eAC.setValue(ALU.EALU.eMultiply.getValue());
     }
     
     private void DIVC(short ir_operand) {
@@ -191,6 +211,11 @@ public class CPU {
     private void NOTA(short ir_operand) {
     }
     private void JMPZ(short ir_operand) {
+    	CU cu = new CU();
+    	System.out.println("JMPZ");
+    	if(cu.isZero(ERegister.eSR.value)) {
+    		ERegister.ePC.setValue(ir_operand);
+    	} else ERegister.ePC.value++;
     }
     
     private void JMPBZEQ(short ir_operand) {
@@ -200,9 +225,18 @@ public class CPU {
     		ERegister.ePC.setValue(ir_operand);
     	} else ERegister.ePC.value++;
     }
+    
     private void JMP(short ir_operand) {
     	ERegister.ePC.setValue(ir_operand);
     	System.out.println("jmp");
+    }
+    
+    private void JMPBZ(short ir_operand) {
+    	CU cu = new CU();
+    	System.out.println("JMPBZ");
+    	if(cu.isBZ(ERegister.eSR.value)) {
+    		ERegister.ePC.setValue(ir_operand);
+    	} else ERegister.ePC.value++;
     }
 
 	
@@ -216,7 +250,7 @@ public class CPU {
    
     
     public void fetch() {
-    	System.out.println("<<<<<fetch>>>>>");
+    	System.out.println("<<<<<<<<fetch>>>>>>>>");
     	System.out.println("Program Counter: "+ERegister.ePC.getValue());
     	ERegister.eMAR.setValue(ERegister.ePC.getValue());
     	ERegister.eMBR.setValue(this.memory.load(ERegister.eMAR.getValue()));
@@ -224,8 +258,7 @@ public class CPU {
     }
     
     public void execute() {
-    	System.out.println("-----execute-----");
-    	
+    	System.out.println("-------execute-------");
     	short ir_opcode =  (short)(ERegister.eIR.value >> 8);
     	short ir_operand = (short)(ERegister.eIR.value & 0x00ff);
     	System.out.println("opcode: " + ir_opcode + ", operand: " + ir_operand);
@@ -260,6 +293,8 @@ public class CPU {
         	this.JMPBZEQ(ir_operand);
     	}else if((short) ir_opcode == EOpCode.eJMP.getValue()){
     		this.JMP(ir_operand);
+    	} else if((short) ir_opcode == EOpCode.eJMPBZ.getValue()){
+    		this.JMPBZ(ir_operand);
     	} else {
     	 	shutDown();
     	}
@@ -276,10 +311,27 @@ public class CPU {
 	public static void main(String args[]) {
 		CPU cpu = new CPU();
 		Memory memory = new Memory();
+		Loader loader = new Loader();
 		cpu.associate(memory);
-		memory.readExe("exe");
+		loader.loadHeader();
+		memory.readExe("exe2");
 		cpu.setPowerOn();
-//		System.out.println((short)0x002F + 1); // 48
+//		System.out.println((short)(32768 & 0x8000));
+//		System.out.println((short)(32768 & 0x4000));
+//		System.out.println((short)(32768 & 0xc000));
+//		System.out.println((short)(16384 & 0xc000));
+//		System.out.println((short)(8192 & 0xc000));
 	}
+	
+	public void setPC(short value) {
+		ERegister.ePC.setValue(value);
+		System.out.println("setPC: " + value);
+	}
+	public void setSP(short value) {
+		ERegister.eSP.setValue(value);
+		System.out.println("setSP: " + value);
+	}
+	
 
 }
+
